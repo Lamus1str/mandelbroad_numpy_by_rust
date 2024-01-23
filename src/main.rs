@@ -48,10 +48,11 @@ fn main()
     let window = Window::new_centered("Mandelbread", (600, 600)).unwrap();
 
     window.run_loop(MyWindowHandler {
-        scale: 500.0,
+        scale: 400.0,
         drawed: false,
         centre: Vec2::ZERO,
         mouse_pos: Vec2::ZERO,
+        degree: 32,
     })
 }
 
@@ -61,6 +62,7 @@ struct MyWindowHandler
     scale: f64,
     drawed: bool,
     mouse_pos: Vec2,
+    degree: usize,
 }
 
 impl WindowHandler for MyWindowHandler
@@ -76,17 +78,24 @@ impl WindowHandler for MyWindowHandler
     }
     fn on_key_down(&mut self, helper: &mut WindowHelper<()>, virtual_key_code: Option<VirtualKeyCode>, scancode: KeyScancode) {
         if let Some(key_code) = virtual_key_code{
-            println!("key");
-            if key_code == VirtualKeyCode::Equals{
-                print!("fff");
+            if key_code == VirtualKeyCode::A{
+                self.degree *= 2;
+            }
+            else if key_code == VirtualKeyCode::S{
+                self.degree /= 2;
+            }
+            else if key_code == VirtualKeyCode::Equals{
+                println!("scale+");
                 self.scale *= 2.0;
             }
             else if key_code == VirtualKeyCode::Minus {
                 self.scale *= 0.5;
+                println!("scale-");
             }
             else{
                 return;
             }
+            self.drawed = false;
             helper.request_redraw();
         }
     }
@@ -103,11 +112,11 @@ impl WindowHandler for MyWindowHandler
                 let c = c32 { a: (x as f64 - 300.0) / self.scale + self.centre.x as f64,
                               b: (y as f64 - 300.0) / self.scale + self.centre.y as f64};
                 let mut z = c32 { a: 0.0, b: 0.0};
-                for n in 0..600{
+                for n in 0..self.degree{
                     z = (z * z) + c;
                     if (z.len() > 2.0) {
                         graphics.draw_line(Vec2::new(x as f32 / 1.0, y as f32 / 1.0), Vec2::new(x as f32 / 1.0 + 1.0, y as f32 / 1.0),
-                                           1.0, Color::from_gray(n as f32 / 64.0));
+                                           1.0, Color::from_rgb(0.0, n as f32 / self.degree as f32 + 0.05, 0.0));
                         break;
                     }
                     else{
