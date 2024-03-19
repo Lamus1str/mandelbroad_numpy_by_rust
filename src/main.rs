@@ -9,7 +9,7 @@ use std::ops;
 use std::panic::resume_unwind;
 use std::time::Instant;
 use speedy2d::color::Color;
-use speedy2d::dimen::Vec2;
+use speedy2d::dimen::{Vec2, Vector2};
 
 #[derive(Copy, Clone)]
 struct c32{
@@ -43,46 +43,70 @@ impl ops::Add for c32{
     }
 }
 
+fn get_color(n: usize, offset: f32) -> Color{
+    let mut new_n = n as f32;
+    Color::from_rgb(
+        (-(new_n * 0.02).cos() * 0.5 + 0.5) * 0.6,
+        (-(new_n * 0.1).cos() * 0.5 + 0.5),
+        (-(new_n * 0.03).cos() * 0.5 + 0.5) * 0.8
+    )
+    //Color::from_rgb((new_n) * 0.008,
+    //                (new_n) * 0.032,
+    //                (new_n) * 0.032 - 0.64)
+}
+
 fn main()
 {
-    let window = Window::new_centered("Mandelbread", (600, 600)).unwrap();
+    let window = Window::new_centered("Mandelbrot's set", (600, 600)).unwrap();
 
     window.run_loop(MyWindowHandler {
         scale: 400.0,
         drawed: false,
-        centre: Vec2::ZERO,
-        mouse_pos: Vec2::ZERO,
+        centre: Vector2::ZERO,
+        mouse_pos: Vector2::ZERO,
         degree: 32,
+        mul_or_add: true,
     })
 }
 
 struct MyWindowHandler
 {
-    centre: Vec2,
+    centre: Vector2<f64>,
     scale: f64,
     drawed: bool,
-    mouse_pos: Vec2,
+    mouse_pos: Vector2<f64>,
     degree: usize,
+    mul_or_add: bool,
 }
 
 impl WindowHandler for MyWindowHandler
 {
     fn on_mouse_move(&mut self, helper: &mut WindowHelper<()>, position: Vec2) {
-        self.mouse_pos = (position - Vec2::new(300.0, 300.0)) / self.scale as f32;
+        let pos_f64 = Vector2::<f64>::new(position.x as f64, position.y as f64);
+        self.mouse_pos = (pos_f64 - Vector2::<f64>::new(300.0, 300.0)) / self.scale as f64;
     }
     fn on_mouse_button_down(&mut self, helper: &mut WindowHelper<()>, button: MouseButton) {
-        println!("{:?}", self.mouse_pos);
+        //println!("{:?}", self.mouse_pos);
         self.centre += self.mouse_pos;
-        self.drawed = false;
         helper.request_redraw();
     }
     fn on_key_down(&mut self, helper: &mut WindowHelper<()>, virtual_key_code: Option<VirtualKeyCode>, scancode: KeyScancode) {
         if let Some(key_code) = virtual_key_code{
             if key_code == VirtualKeyCode::A{
-                self.degree *= 2;
+                if self.mul_or_add{
+                    self.degree *= 2;
+                }
+                else{
+                    self.degree += 1;
+                }
             }
             else if key_code == VirtualKeyCode::S{
-                self.degree /= 2;
+                if self.mul_or_add{
+                    self.degree /= 2;
+                }
+                else{
+                    self.degree -= 1;
+                }
             }
             else if key_code == VirtualKeyCode::Equals{
                 println!("scale+");
@@ -92,31 +116,34 @@ impl WindowHandler for MyWindowHandler
                 self.scale *= 0.5;
                 println!("scale-");
             }
+            else if key_code == VirtualKeyCode::LControl {
+                self.mul_or_add = !self.mul_or_add;
+            }
             else{
                 return;
             }
-            self.drawed = false;
             helper.request_redraw();
         }
     }
     fn on_draw(&mut self, helper: &mut WindowHelper, graphics: &mut Graphics2D)
     {
-        if self.drawed{
-            return
-        }
         self.drawed = true;
         graphics.clear_screen(Color::BLACK);
         println!("drawing");
         for x in 0..600{
             for y in 0..600{
-                let c = c32 { a: (x as f64 - 300.0) / self.scale + self.centre.x as f64,
-                              b: (y as f64 - 300.0) / self.scale + self.centre.y as f64};
+                let c = c32 {
+                    a: (x as f64 - 300.0) / self.scale + self.centre.x as f64,
+                    b: (y as f64 - 300.0) / self.scale + self.centre.y as f64};
                 let mut z = c32 { a: 0.0, b: 0.0};
                 for n in 0..self.degree{
                     z = (z * z) + c;
                     if (z.len() > 2.0) {
-                        graphics.draw_line(Vec2::new(x as f32 / 1.0, y as f32 / 1.0), Vec2::new(x as f32 / 1.0 + 1.0, y as f32 / 1.0),
-                                           1.0, Color::from_rgb(0.0, n as f32 / self.degree as f32 + 0.05, 0.0));
+                        //let color = Color::from_rgb(0.0, n as f32 / self.degree as f32 * 1.6 + 0.05, 0.0);
+                        graphics.draw_line(
+                            Vec2::new(x as f32 / 1.0, y as f32 / 1.0),
+                            Vec2::new(x as f32 / 1.0 + 1.0, y as f32 / 1.0),
+                            1.0, get_color(n, 1.0 / self.scale as f32));
                         break;
                     }
                     else{
@@ -126,7 +153,10 @@ impl WindowHandler for MyWindowHandler
                 }
             }
         }
-        println!("Success!");
-        helper.request_redraw();
+        println!(
+            "Success! Zoom {}(1/pixel size); position: ({}, {})",
+            self.scale, self.centre.x, self.centre.y
+        );
+        //helper.request_redraw();
     }
 }
